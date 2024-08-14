@@ -1,9 +1,10 @@
 package handlers
 
 import (
+	"encoding/json"
 	"log"
+	"math/rand"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -28,36 +29,61 @@ func HandleWebSocket(c *gin.Context) {
 	roomCode := c.Param("roomCode")
 	username := c.Query("username")
 
-	log.Printf("New WebSocket connection: Room: %s, Username: %s", roomCode, username)
-
 	client := &models.Client{
 		Conn:     conn,
 		Username: username,
-		Send:     make(chan []byte, 256),
 	}
 
 	room := models.GetOrCreateRoom(roomCode)
 	room.RegisterClient(client)
 
-	log.Printf("Client %s registered in room %s", username, roomCode)
+	log.Printf("New client %s connected to room %s", username, roomCode)
 
-	// Send initial user list
-	room.BroadcastUserList()
+	defer room.UnregisterClient(client)
 
-	go client.WritePump()
-	go client.ReadPump(room)
-
-	// Send a ping message every 5 seconds
-	go func() {
-		ticker := time.NewTicker(5 * time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-					return
-				}
-			}
+	for {
+		_, p, err := conn.ReadMessage()
+		if err != nil {
+			log.Println(err)
+			return
 		}
-	}()
+
+		var message map[string]interface{}
+		if err := json.Unmarshal(p, &message); err != nil {
+			log.Println("Error unmarshaling message:", err)
+			continue
+		}
+
+		log.Printf("Received message from %s: %v", username, message)
+
+		if message["type"] == "code" {
+			room.BroadcastMessage(p)
+		}
+	}
+}
+
+func generateRoomCode() string {
+	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+	code := make([]byte, 6)
+	for i := range code {
+		code[i] = charset[rand.Intn(len(charset))]
+	}
+	return string(code)
+}
+
+func CreateRoom(c *gin.Context) {
+	var request struct {
+		Username string `json:"username"`
+	}
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if request.Username == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username is required"})
+		return
+	}
+	roomCode := generateRoomCode()
+	models.GetOrCreateRoom(roomCode)
+	c.JSON(http.StatusOK, gin.H{"roomCode": roomCode})
 }

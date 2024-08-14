@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -62,9 +63,17 @@ func ExecuteCode(c *gin.Context) {
 	}
 
 	log.Printf("Code executed successfully. Output length: %d", len(output))
+
+	// Broadcast the output to all clients in the room
+	roomCode := c.Query("roomCode")
+	if room, exists := rooms[roomCode]; exists {
+		message := ExecuteResponse{Output: output}
+		jsonMessage, _ := json.Marshal(message)
+		room.BroadcastMessage(jsonMessage)
+	}
+
 	c.JSON(http.StatusOK, ExecuteResponse{Output: output})
 }
-
 func executeInDocker(code, language string) (string, error) {
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())

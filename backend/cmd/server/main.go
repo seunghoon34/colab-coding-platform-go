@@ -1,43 +1,29 @@
 package main
 
 import (
-	"net/http"
-	"time"
-
 	"github.com/seunghoon34/collaborative-coding-platform/internal/handlers"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+
+	"math/rand"
+	"time"
 )
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
+
 	r := gin.Default()
 
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"},
-		AllowMethods:     []string{"GET", "POST", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
-	}))
+	// Add CORS middleware
+	config := cors.DefaultConfig()
+	config.AllowOrigins = []string{"http://localhost:3000"} // Adjust this to match your frontend URL
+	config.AllowMethods = []string{"GET", "POST", "OPTIONS"}
+	r.Use(cors.New(config))
 
+	r.POST("/create-room", handlers.CreateRoom)
 	r.GET("/ws/:roomCode", handlers.HandleWebSocket)
-	r.POST("/execute", gin.HandlerFunc(func(c *gin.Context) {
-		// Set a timeout for code execution
-		c.Request = c.Request.WithContext(c.Request.Context())
-		done := make(chan struct{})
-		go func() {
-			handlers.ExecuteCode(c)
-			close(done)
-		}()
-		select {
-		case <-done:
-			return
-		case <-time.After(30 * time.Second):
-			c.JSON(http.StatusRequestTimeout, gin.H{"error": "Code execution timed out"})
-		}
-	}))
+	r.POST("/execute", handlers.ExecuteCode)
 
-	r.Run(":8080")
+	r.Run("0.0.0.0:8080")
 }

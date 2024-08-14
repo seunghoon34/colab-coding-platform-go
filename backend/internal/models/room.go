@@ -71,15 +71,12 @@ func (r *Room) BroadcastMessage(message []byte) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	log.Printf("Broadcasting message to %d clients in room %s: %s", len(r.Clients), r.Code, string(message))
 	for client := range r.Clients {
-		select {
-		case client.Send <- message:
-			log.Printf("Message sent to client %s", client.Username)
-		default:
-			log.Printf("Failed to send message to client %s, closing connection", client.Username)
-			close(client.Send)
+		err := client.Conn.WriteMessage(websocket.TextMessage, message)
+		if err != nil {
+			log.Printf("Error broadcasting message to client: %v", err)
 			delete(r.Clients, client)
+			client.Conn.Close()
 		}
 	}
 }
