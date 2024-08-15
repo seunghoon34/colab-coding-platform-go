@@ -25,6 +25,12 @@ type Message struct {
 	Content interface{} `json:"content"`
 }
 
+type ChatMessage struct {
+	Type     string `json:"type"`
+	Username string `json:"username"`
+	Content  string `json:"content"`
+}
+
 var (
 	rooms = make(map[string]*Room)
 	mutex sync.Mutex

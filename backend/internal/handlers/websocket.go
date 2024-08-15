@@ -59,6 +59,14 @@ func HandleWebSocket(c *gin.Context) {
 			room.BroadcastMessage(p)
 		case "language":
 			room.BroadcastMessage(p)
+		case "chat":
+			chatMessage := models.ChatMessage{
+				Type:     "chat",
+				Username: username,
+				Content:  message["content"].(string),
+			}
+			chatJSON, _ := json.Marshal(chatMessage)
+			room.BroadcastMessage(chatJSON)
 		default:
 			log.Printf("Unknown message type: %v", message["type"])
 		}
