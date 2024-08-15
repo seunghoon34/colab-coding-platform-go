@@ -5,13 +5,11 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-
-	"math/rand"
-	"time"
+	"github.com/seunghoon34/collaborative-coding-platform/internal/models"
 )
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
+	models.GetRoomManager()
 
 	r := gin.Default()
 

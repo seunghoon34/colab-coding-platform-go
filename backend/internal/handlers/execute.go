@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/gin-gonic/gin"
+	"github.com/seunghoon34/collaborative-coding-platform/internal/models"
 )
 
 type ExecuteRequest struct {
@@ -66,14 +67,13 @@ func ExecuteCode(c *gin.Context) {
 
 	// Broadcast the output to all clients in the room
 	roomCode := c.Query("roomCode")
-	if room, exists := rooms[roomCode]; exists {
-		message := ExecuteResponse{Output: output}
-		jsonMessage, _ := json.Marshal(message)
-		room.BroadcastMessage(jsonMessage)
-	}
+	message := ExecuteResponse{Output: output}
+	jsonMessage, _ := json.Marshal(message)
+	models.GetRoomManager().BroadcastToRoom(roomCode, jsonMessage)
 
 	c.JSON(http.StatusOK, ExecuteResponse{Output: output})
 }
+
 func executeInDocker(code, language string) (string, error) {
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())

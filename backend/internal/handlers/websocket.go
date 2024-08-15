@@ -34,7 +34,7 @@ func HandleWebSocket(c *gin.Context) {
 		Username: username,
 	}
 
-	room := models.GetOrCreateRoom(roomCode)
+	room := models.GetRoomManager().GetOrCreateRoom(roomCode)
 	room.RegisterClient(client)
 
 	log.Printf("New client %s connected to room %s", username, roomCode)
@@ -54,10 +54,13 @@ func HandleWebSocket(c *gin.Context) {
 			continue
 		}
 
-		log.Printf("Received message from %s: %v", username, message)
-
-		if message["type"] == "code" {
+		switch message["type"] {
+		case "code":
 			room.BroadcastMessage(p)
+		case "language":
+			room.BroadcastMessage(p)
+		default:
+			log.Printf("Unknown message type: %v", message["type"])
 		}
 	}
 }
